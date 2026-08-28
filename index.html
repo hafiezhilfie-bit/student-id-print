@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Student Data Management System V2</title>
+</head>
+<body>
+
+  <!-- ========================================== -->
+  <!-- 1. STRUKTUR HTML UTAMA                     -->
+  <!-- ========================================== -->
+  <div id="app"></div>
+  <div id="modalRoot"></div>
+  <div id="toastBox" class="toast-box" aria-live="polite"></div>
+
+  <!-- ========================================== -->
+  <!-- 2. GAYA CSS                                -->
+  <!-- ========================================== -->
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #fff;
+      --text: #172033;
+      --muted: #687386;
+      --primary: #315efb;
+      --primary2: #7048e8;
+      --danger: #d63939;
+      --border: #e3e8f0;
+      --shadow: 0 12px 35px rgba(28,39,65,.10);
+      --radius: 18px;
+    }
+    
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .hidden { display: none !important; }
+    .app { min-height: 100vh; }
+    
+    /* Layout Header & Navigation */
+    .topbar { position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,.94); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .brand { font-weight: 800; font-size: 18px; }
+    .brand small { display: block; font-weight: 500; color: var(--muted); font-size: 11px; margin-top: 2px; }
+    .nav { display: flex; gap: 8px; flex-wrap: wrap; }
+    .nav button, .btn { border: 0; border-radius: 12px; padding: 10px 14px; font-weight: 700; background: #edf1f7; color: var(--text); }
+    .nav button.active, .btn.primary { color: #fff; background: linear-gradient(135deg, var(--primary), var(--primary2)); }
+    .btn.danger { background: #fff0f0; color: var(--danger); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    
+    /* Main Content Area */
+    main { width: min(1280px, calc(100% - 28px)); margin: 24px auto 60px; }
+    .page-head { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 18px; }
+    .page-head h1 { margin: 0; font-size: 26px; }
+    .page-head p { margin: 5px 0 0; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
+    .stat strong { font-size: 28px; display: block; }
+    .stat span { color: var(--muted); font-size: 13px; }
+    
+    /* Toolbar & Student Grid */
+    .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+    .search { flex: 1; min-width: 220px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 13px; background: #fff; outline: none; }
+    .search:focus, input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(49,94,251,.10); }
+    .student-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
+    .student-card { overflow: hidden; padding: 12px; cursor: pointer; transition: .2s; display: flex; align-items: flex-start; gap: 12px; }
+    .student-card:hover { transform: translateY(-2px); }
+    .student-photo { width: 48px; height: 48px; min-width: 48px; object-fit: cover; border-radius: 12px; background: #eef2f7; }
+    .student-body { padding: 0; min-width: 0; flex: 1; }
+    .student-body h3 { margin: 0 0 7px; overflow-wrap: anywhere; }
+    .meta { color: var(--muted); font-size: 13px; line-height: 1.65; }
+    .actions { display: flex; gap: 8px; margin-top: 13px; }
+    .actions .btn { flex: 1; }
+    .empty { text-align: center; padding: 45px 20px; color: var(--muted); }
+    
+    /* Forms & Photo Elements */
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
+    .field label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+    .field input, .field select, .field textarea { width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 12px; background: #fff; outline: none; }
+    .field.full { grid-column: 1/-1; }
+    .field textarea { min-height: 90px; resize: vertical; }
+    .photo-actions { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 24px; }
+    .photo-preview { width: 120px; height: 120px; object-fit: cover; border-radius: 15px; border: 1px solid var(--border); background: #eef2f7; margin-top: 12px; display: block; }
+    
+    /* Floating Labels */
+    .field.floating { position: relative; }
+    .field.floating>label { position: absolute; left: 12px; top: 11px; margin: 0; padding: 0 4px; background: #fff; color: var(--muted); pointer-events: none; transition: .15s; font-size: 12px; z-index: 1; }
+    .field.floating>input:focus+label, .field.floating>input:not(:placeholder-shown)+label, .field.floating>textarea:focus+label, .field.floating>textarea:not(:placeholder-shown)+label { top: -7px; color: var(--primary); font-size: 10px; font-weight: 800; }
+    .field.floating>select+label { top: -7px; color: var(--primary); font-size: 10px; font-weight: 800; }
+    .field.floating>input, .field.floating>select, .field.floating>textarea { padding-top: 13px; }
+
+    /* Modals & Toast Notifications */
+    .modal-wrap { position: fixed; inset: 0; z-index: 100; background: rgba(10,17,30,.55); display: grid; place-items: center; padding: 16px; }
+    .modal { width: min(720px,100%); max-height: min(90vh,800px); overflow: auto; background: #fff; border-radius: 22px; box-shadow: 0 25px 80px rgba(0,0,0,.25); }
+    .modal-head { position: sticky; top: 0; background: #fff; border-bottom: 1px solid var(--border); padding: 17px 20px; display: flex; justify-content: space-between; align-items: center; z-index: 2; }
+    .modal-head h2 { margin: 0; font-size: 19px; }
+    .close { border: 0; background: #edf1f7; width: 36px; height: 36px; border-radius: 50%; font-size: 20px; }
+    .modal-body { padding: 20px; }
+    .modal-foot { display: flex; justify-content: flex-end; gap: 9px; padding: 15px 20px; border-top: 1px solid var(--border); }
+    .toast-box { position: fixed; right: 16px; bottom: 16px; z-index: 200; display: grid; gap: 10px; width: min(370px, calc(100% - 32px)); }
+    .toast { background: #fff; border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: 15px; padding: 13px 15px; animation: in .2s ease; }
+    .toast b { display: block; }
+    .toast span { font-size: 13px; color: var(--muted); }
+    @keyframes in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+    /* Sidebar Navigation */
+    .menu-btn { display: block; border: 1px solid var(--border); background: #fff; border-radius: 12px; width: 44px; height: 40px; font-size: 22px; box-shadow: 0 4px 14px rgba(28,39,65,.08); }
+    .sidebar { position: fixed; top: 0; right: 0; z-index: 90; width: 290px; max-width: calc(100vw - 24px); height: 100vh; background: #fff; border-left: 1px solid var(--border); box-shadow: -15px 0 45px rgba(20,30,50,.14); padding: 18px; transform: translateX(105%); transition: transform .22s ease; overflow-y: auto; }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; font-size: 14px; }
+    .close-side { border: 0; background: #edf1f7; border-radius: 10px; width: 38px; height: 38px; font-size: 22px; }
+    .side-section { font-size: 10px; font-weight: 800; letter-spacing: .12em; color: var(--muted); margin: 17px 4px 7px; }
+    .side-btn { width: 100%; display: flex; align-items: center; gap: 9px; border: 1px solid transparent; background: #f5f7fa; color: var(--text); border-radius: 12px; padding: 12px 13px; margin: 6px 0; text-align: left; font-weight: 700; min-height: 44px; }
+    .side-btn:hover { background: #edf1f7; transform: translateX(-2px); }
+    .side-btn.active { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: #fff; }
+    .primary-side { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: #fff; }
+    .danger-side { color: var(--danger); background: #fff0f0; }
+    .badge { margin-left: auto; min-width: 23px; height: 23px; padding: 2px 6px; border-radius: 999px; background: #fff; color: var(--primary); display: grid; place-items: center; font-size: 11px; }
+    .sidebar-overlay { position: fixed; inset: 0; z-index: 80; background: rgba(8,15,28,.42); opacity: 0; visibility: hidden; transition: .2s; }
+    .sidebar-overlay.show { opacity: 1; visibility: visible; }
+    body.sidebar-open { overflow: auto; }
+
+    /* Print & Card Styling */
+    .id-page { background: #e9edf4; padding: 16px; overflow: auto; }
+    .a4 { width: 210mm; min-height: 297mm; margin: auto; background: #fff; padding: 10mm; display: grid; grid-template-columns: 86mm 86mm; grid-auto-rows: 54mm; gap: 5mm 8mm; align-content: start; justify-content: center; }
+    .id-card { width: 86mm; height: 54mm; border: 1px solid #ccd3df; border-radius: 2mm; overflow: hidden; position: relative; background: #fff; box-sizing: border-box; }
+    .id-front, .id-back { width: 86mm; height: 54mm; padding: 4mm; position: relative; box-sizing: border-box; background-size: cover; background-position: center; background-repeat: no-repeat; }
+    .id-front { display: grid; grid-template-columns: 22mm 1fr; gap: 3.5mm; }
+    .id-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; z-index: 0; pointer-events: none; }
+    .id-front-content, .id-back-content { position: relative; z-index: 1; }
+    .id-front-content { display: grid; grid-template-columns: 22mm 1fr; gap: 3.5mm; width: 100%; height: 100%; }
+    .id-photo { width: 22mm; height: 28mm; max-width: 22mm; max-height: 28mm; object-fit: cover; border-radius: 1.5mm; background: #edf1f7; }
+    .id-title { font-size: 9px; font-weight: 900; line-height: 1.15; }
+    .id-line { font-size: 7px; line-height: 1.25; margin-top: 1.5mm; overflow-wrap: anywhere; }
+    .print-only { display: none; }
+
+    /* Media Queries */
+    @media(max-width:900px) { .grid, .student-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media(max-width:650px) { 
+      .topbar { align-items: flex-start; flex-direction: row; } 
+      .page-head { align-items: flex-start; flex-direction: column; } 
+      .grid, .student-grid, .form-grid { grid-template-columns: 1fr; } 
+      .field.full { grid-column: auto; } 
+      .modal-wrap { padding: 8px; } 
+      .modal { max-height: 94vh; } 
+      .id-page { padding: 8px; } 
+      .a4 { margin: 0; transform: none; } 
+    }
+    @media print { 
+      body { background: #fff; } 
+      .no-print { display: none !important; } 
+      .print-only { display: block; } 
+      .id-page { padding: 0; background: #fff; } 
+      .a4 { box-shadow: none; margin: 0; padding: 10mm; page-break-after: always; } 
+      .id-card { break-inside: avoid; } 
+      @page { size: A4 portrait; margin: 0; } 
+    }
+  </style>
+
+  <!-- ========================================== -->
+  <!-- 3. LOGIK JAVASCRIPT & EXCEL LIBRARY        -->
+  <!-- ========================================== -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script>
+    "use strict";
+    const DB_KEY = "studentDatabaseV2", PENDING_KEY = "studentPendingV2", ADMIN_USER = "KUN", ADMIN_PASS = "4444";
+    let isAdmin = false, tab = "entry", students = [], pending = [], photoData = "", editingId = null, searchTimer = null;
+    let a4Selected = [];
+
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s??"").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+
+    function read(k) {
+      try {
+        const raw = localStorage.getItem(k);
+        if(!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch(e) {
+        console.error("LOCAL READ ERROR:", e);
+        return [];
+      }
+    }
+
+    function write(k, v) {
+      try {
+        localStorage.setItem(k, JSON.stringify(v));
+        return true;
+      } catch(e) {
+        console.error("LOCAL WRITE ERROR:", e);
+        return false;
+      }
+    }
+
+    function toast(type, title, msg) {
+      const el = document.createElement("div");
+      el.className = "toast";
+      el.innerHTML = `<b>${esc(title)}</b><span>${esc(msg)}</span>`;
+      $("toastBox").appendChild(el);
+      setTimeout(() => el.remove(), 3500);
+    }
+
+    function norm(s) { return String(s||"").trim().replace(/\s+/g, " ").toLowerCase(); }
+    function nextNo() { const nums = students.map(s => parseInt(String(s.student_no||"").replace(/\D/g,""),10)).filter(Number.isFinite); return "ST-" + String((Math.max(0,...nums)+1)).padStart(4,"0"); }
+    function save() { write(DB_KEY, students); write(PENDING_KEY, pending); }
+
+    function render() {
+      students = read(DB_KEY); pending = read(PENDING_KEY);
+      const pendingCount = pending.filter(x => x.status === "pending").length;
+      
+      $("app").innerHTML = `
+      <header class="topbar">
+        <div class="brand">Student Data Management System<small>Local V2 • Student data stored on this device</small></div>
+        <button class="menu-btn" aria-label="Open menu" onclick="toggleSidebar(true)">☰</button>
+      </header>
+      <div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleSidebar(false)"></div>
+      <aside id="sidebar" class="sidebar" aria-label="Application menu">
+        <div class="sidebar-head"><b>MENU</b><button class="close-side" aria-label="Close menu" onclick="toggleSidebar(false)">×</button></div>
+        <div class="side-section">MAIN</div>
+        <button class="side-btn ${tab==="entry"?"active":""}" onclick="setTab('entry')">＋ New Student Registration</button>
+        ${isAdmin?`
+          <button class="side-btn ${tab==="data"?"active":""}" onclick="setTab('data')">▣ Student Record</button>
+          <button class="side-btn ${tab==="review"?"active":""}" onclick="setTab('review')">✓ Pending Review <span class="badge">${pendingCount}</span></button>
+          <div class="side-section">EXPORT & PRINT</div>
+          <button class="side-btn" onclick="openA4()">▤ A4 Preview / Print</button>
+          <button class="side-btn" onclick="exportCSV()">⇩ Export CSV</button>
+          <button class="side-btn" onclick="exportExcel()">⇩ Export Excel</button>
+          <div class="side-section">ACCOUNT</div>
+          <button class="side-btn danger-side" onclick="logout()">↪ Logout</button>
+        `:`<div class="side-section">ADMIN</div>
+          <button class="side-btn primary-side" onclick="openLogin()">▣ Admin Login</button>
+        `}
+      </aside>
+      <main id="main"></main>`;
+
+      if(tab === "entry") entryPage();
+      if(tab === "data") dataPage();
+      if(tab === "review") reviewPage();
+    }
+
+    function toggleSidebar(open) {
+      const s = $("sidebar"), o = $("sidebarOverlay");
+      if(s) s.classList.toggle("open", !!open);
+      if(o) o.classList.toggle("show", !!open);
+      document.body.classList.toggle("sidebar-open", !!open);
+    }
+
+    function setTab(t) { tab = t; toggleSidebar(false); render(); }
+
+    function entryPage() {
+      const adminFields = isAdmin ? `<div class="field floating"><input id="enrollment" placeholder=" "><label>Enrollment Fee</label></div><div class="field floating"><input id="balance" placeholder=" "><label>Balance</label></div><div class="field floating"><select id="scholar"><option value="No">No</option><option value="Yes">Yes</option></select></div><div class="field floating"><select id="paid"><option value="No">No</option><option value="Yes">Yes</option></select></div>` : "";
+      
+      $("main").innerHTML = `<div class="page-head"><div><h1>Student Registration</h1><p>${isAdmin?"Register and manage a student locally.":"Submit a new student to the local pending review queue."}</p></div></div>
+      <div class="card"><form id="studentForm" onsubmit="submitStudent(event)"><div class="form-grid">
+      <div class="field full floating"><label>Student Photo</label><div class="photo-actions"><button type="button" class="btn" onclick="pickGallery()">Gallery</button><button type="button" class="btn" onclick="pickCamera()">Camera</button><input id="gallery" type="file" accept="image/*" hidden onchange="photoPicked(event)"><input id="camera" type="file" accept="image/*" capture="environment" hidden onchange="photoPicked(event)"></div><img id="photoPreview" class="photo-preview hidden" alt="Student photo preview"></div>
+      <div class="field floating"><input id="fullname" placeholder=" " required><label>Full Name *</label></div><div class="field floating"><input id="dob" type="date" placeholder=" " required><label>Date of Birth *</label></div>
+      <div class="field floating"><input id="contact" placeholder=" " required><label>Contact Number *</label></div><div class="field floating"><select id="grade" required><option value="">Select grade</option>${Array.from({length:11},(_,i)=>`<option>Grade ${i}</option>`).join("")}</select><label>Grade / Class *</label></div>
+      <div class="field full floating"><textarea id="address" placeholder=" " required></textarea><label>Address *</label></div>${adminFields}
+      </div><div style="margin-top:16px"><button id="submitBtn" class="btn primary" type="submit">${isAdmin?"Save Student":"Submit Student"}</button></div></form></div>`;
+    }
+
+    function pickGallery() { $("gallery").click(); }
+    function pickCamera() { $("camera").click(); }
+
+    function photoPicked(e) {
+      const f = e.target.files?.[0];
+      if(!f) return;
+      if(!f.type || !f.type.startsWith("image/")) {
+        toast("warning", "Invalid photo", "Please choose an image file.");
+        return;
+      }
+      const r = new FileReader();
+      r.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const max = 600;
+            const scale = Math.min(1, max / Math.max(img.naturalWidth||img.width, img.naturalHeight||img.height));
+            const w = Math.max(1, Math.round((img.naturalWidth||img.width) * scale));
+            const h = Math.max(1, Math.round((img.naturalHeight||img.height) * scale));
+            const c = document.createElement("canvas");
+            c.width = w; c.height = h;
+            c.getContext("2d").drawImage(img, 0, 0, w, h);
+            photoData = c.toDataURL("image/jpeg", 0.68);
+            const previewId = e.target.id==="editGallery"||e.target.id==="editCamera" ? "editPhotoPreview" : "photoPreview";
+            const preview = $(previewId);
+            if(preview) { preview.src = photoData; preview.classList.remove("hidden"); }
+          } catch(err) {
+            console.error("PHOTO COMPRESS ERROR:", err);
+            photoData = r.result;
+            const previewId = e.target.id==="editGallery"||e.target.id==="editCamera" ? "editPhotoPreview" : "photoPreview";
+            const preview = $(previewId);
+            if(preview) { preview.src = photoData; preview.classList.remove("hidden"); }
+          }
+        };
+        img.onerror = () => toast("error", "Photo error", "The selected image could not be processed.");
+        img.src = r.result;
+      };
+      r.onerror = () => toast("error", "Photo error", "The selected image could not be read.");
+      r.readAsDataURL(f);
+    }
+
+    function submitStudent(e) {
+      if(e) e.preventDefault();
+      const btn = $("submitBtn");
+      if(!btn || btn.disabled) return;
+
+      const form = $("studentForm");
+      try {
+        btn.disabled = true;
+        btn.textContent = "Saving...";
+
+        let currentStudents = read(DB_KEY);
+        let currentPending = read(PENDING_KEY);
+
+        const fullname = String($("fullname")?.value||"").trim();
+        const dob = String($("dob")?.value||"").trim();
+        const contact = String($("contact")?.value||"").trim();
+        const grade = String($("grade")?.value||"").trim();
+        const address = String($("address")?.value||"").trim();
+
+        if(!fullname || !dob || !contact || !grade || !address) {
+          toast("warning", "Incomplete form", "Please complete all required fields.");
+          return;
+        }
+
+        const duplicate = currentStudents.some(s => norm(s.fullname) === norm(fullname)) || currentPending.some(s => norm(s.fullname) === norm(fullname) && s.status === "pending");
+        if(duplicate) {
+          toast("warning", "Duplicate student", "This student name is already registered or is already waiting for review.");
+          return;
+        }
+
+        const uid = "P-" + Date.now() + "-" + Math.random().toString(36).slice(2,10);
+        const nums = currentStudents.map(s => parseInt(String(s.student_no||"").replace(/\D/g,""),10)).filter(n => Number.isFinite(n));
+        const studentNo = "ST-" + String((Math.max(0,...nums)+1)).padStart(4,"0");
+
+        const record = {
+          id: uid, student_no: studentNo, fullname: fullname, dob: dob, contact: contact, grade: grade, address: address,
+          enrollment: isAdmin ? String($("enrollment")?.value||"") : "",
+          balance: isAdmin ? String($("balance")?.value||"") : "",
+          scholar: isAdmin ? String($("scholar")?.value||"No") : "No",
+          paid: isAdmin ? String($("paid")?.value||"No") : "No",
+          photo: photoData || "", status: "pending", created_at: new Date().toISOString()
+        };
+
+        currentPending.push(record);
+        if(!write(PENDING_KEY, currentPending)) {
+          throw new Error("Browser local storage quota is full.");
+        }
+
+        pending = read(PENDING_KEY);
+        students = currentStudents;
+
+        if(form) form.reset();
+        photoData = "";
+        const preview = $("photoPreview");
+        if(preview) { preview.removeAttribute("src"); preview.classList.add("hidden"); }
+
+        toast("success", "Student submitted", "Student " + studentNo + " saved and awaiting Admin Review.");
+      } catch(err) {
+        console.error("SUBMIT ERROR:", err);
+        toast("error", "Submit failed", "Could not save locally. Please try again.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Submit Student";
+      }
+    }
+
+    function dataPage() {
+      $("main").innerHTML = `<div class="page-head"><div><h1>Student Records</h1><p>Search and manage local student records.</p></div></div><div class="grid"><div class="card stat"><strong>${students.length}</strong><span>Total students</span></div><div class="card stat"><strong>${pending.length}</strong><span>Pending review</span></div><div class="card stat"><strong>${students.filter(s=>s.scholar==="Yes").length}</strong><span>Scholarship</span></div></div><br><div class="toolbar"><input id="search" class="search" placeholder="Search student name..." oninput="debouncedSearch()"></div><div id="studentGrid" class="student-grid"></div>`;
+      renderStudents();
+    }
+
+    function debouncedSearch() { clearTimeout(searchTimer); searchTimer = setTimeout(renderStudents, 250); }
+
+    function renderStudents() {
+      students = read(DB_KEY);
+      const q = norm($("search")?.value||"");
+      const list = q ? students.filter(s => norm(s.fullname).includes(q)) : [];
+      $("studentGrid").innerHTML = q ? (list.length ? list.map(studentCard).join("") : `<div class="card empty" style="grid-column:1/-1">No student records found.</div>`) : `<div class="card empty" style="grid-column:1/-1">Search by student name to display student records.</div>`;
+    }
+
+    function studentCard(s) {
+      return `<article class="card student-card record-card" onclick="detail('${s.id}')">
+        ${s.photo ? `<img class="student-photo" src="${s.photo}" alt="Student photo" onclick="event.stopPropagation();viewFullImage('${s.id}')">` : `<div class="student-photo" style="display:grid;place-items:center;color:#8a93a3;font-size:10px">No Photo</div>`}
+        <div class="student-body">
+          <h3>${esc(s.fullname)}</h3>
+          <div class="meta"><b>${esc(s.student_no)}</b> • ${esc(s.grade)}<br>${esc(s.dob)}<br>${esc(s.contact)}<br>${esc(s.address)}<br><b>Scholar:</b> ${esc(s.scholar||"No")} • <b>Paid:</b> ${esc(s.paid||"No")}<br><b>Enrollment:</b> ${esc(s.enrollment||"")} • <b>Balance:</b> ${esc(s.balance||"")}</div>
+          <div class="actions"><button class="btn" onclick="event.stopPropagation();editStudent('${s.id}')">Edit</button><button class="btn danger" onclick="event.stopPropagation();deleteStudent('${s.id}')">Delete</button></div>
+        </div>
+      </article>`;
+    }
+
+    function detail(id) {
+      const s = students.find(x => x.id === id);
+      if(!s) return;
+      openModal("Student Detail", `<img src="${s.photo||""}" style="width:100px;height:125px;object-fit:cover;border-radius:14px"><h2>${esc(s.fullname)}</h2><div class="meta">Student No: ${esc(s.student_no)}<br>DOB: ${esc(s.dob)}<br>Contact: ${esc(s.contact)}<br>Grade: ${esc(s.grade)}<br>Address: ${esc(s.address)}<br>Enrollment Fee: ${esc(s.enrollment||"")}<br>Balance: ${esc(s.balance||"")}<br>Scholar: ${esc(s.scholar||"No")}<br>Paid Status: ${esc(s.paid||"No")}</div>`);
+    }
+
+    function editStudent(id) {
+      const s = students.find(x => x.id === id);
+      if(!s) return;
+      editingId = id; photoData = s.photo || "";
+      openModal("Edit Student", `<form id="editForm" onsubmit="updateStudent(event)">
+        <div class="form-grid">
+          <div class="field full"><label>Student Photo</label><div class="photo-actions">
+            <button type="button" class="btn" onclick="document.getElementById('editGallery').click()">Gallery</button>
+            <button type="button" class="btn" onclick="document.getElementById('editCamera').click()">Camera</button>
+            <input id="editGallery" type="file" accept="image/*" hidden onchange="photoPicked(event)">
+            <input id="editCamera" type="file" accept="image/*" capture="environment" hidden onchange="photoPicked(event)">
+          </div>
+          ${s.photo ? `<img id="editPhotoPreview" class="photo-preview" src="${s.photo}" alt="Student photo">` : `<img id="editPhotoPreview" class="photo-preview hidden" alt="Student photo">`}
+          </div>
+          <div class="field"><label>Full Name</label><input id="eName" required value="${esc(s.fullname)}"></div>
+          <div class="field"><label>Date of Birth</label><input id="eDob" type="date" required value="${esc(s.dob)}"></div>
+          <div class="field"><label>Contact</label><input id="eContact" required value="${esc(s.contact)}"></div>
+          <div class="field"><label>Grade</label><select id="eGrade">${Array.from({length:11},(_,i)=>`<option ${s.grade==="Grade "+i?"selected":""}>Grade ${i}</option>`).join("")}</select></div>
+          <div class="field full"><label>Address</label><textarea id="eAddress" required>${esc(s.address)}</textarea></div>
+          <div class="field"><label>Enrollment Fee</label><input id="eEnrollment" value="${esc(s.enrollment||"")}"></div>
+          <div class="field"><label>Balance</label><input id="eBalance" value="${esc(s.balance||"")}"></div>
+          <div class="field"><label>Scholar</label><select id="eScholar"><option ${s.scholar==="Yes"?"selected":""}>Yes</option><option ${s.scholar!=="Yes"?"selected":""}>No</option></select></div>
+          <div class="field"><label>Paid Status</label><select id="ePaid"><option ${s.paid==="Yes"?"selected":""}>Yes</option><option ${s.paid!=="Yes"?"selected":""}>No</option></select></div>
+        </div>
+        <div style="margin-top:16px"><button class="btn primary" type="submit">Save Changes</button></div>
+      </form>`);
+    }
+
+    function updateStudent(e) {
+      e.preventDefault();
+      try {
+        const s = students.find(x => x.id === editingId);
+        if(!s) return;
+        s.fullname = $("eName").value.trim(); s.dob = $("eDob").value; s.contact = $("eContact").value.trim();
+        s.grade = $("eGrade").value; s.address = $("eAddress").value.trim(); s.enrollment = $("eEnrollment").value;
+        s.balance = $("eBalance").value; s.scholar = $("eScholar").value; s.paid = $("ePaid").value; s.photo = photoData;
+        save(); closeModal(); render(); toast("success", "Updated", "Student record updated.");
+      } catch(err) {
+        console.error(err); toast("error", "Update failed", "Could not update the student.");
+      }
+    }
+
+    function deleteStudent(id) {
+      const s = students.find(x => x.id === id);
+      if(!s) return;
+      openModal("Delete student?", `<p>Delete <b>${esc(s.fullname)}</b>?</p><p class="meta">This action is permanent.</p><div class="actions"><button class="btn" onclick="closeModal()">Keep Record</button><button class="btn danger" onclick="confirmDelete('${id}')">Delete Permanently</button></div>`);
+    }
+
+    function confirmDelete(id) { students = students.filter(s => s.id !== id); save(); closeModal(); render(); toast("success", "Deleted", "Student record deleted."); }
+
+    function reviewPage() {
+      pending = read(PENDING_KEY); students = read(DB_KEY);
+      $("main").innerHTML = `<div class="page-head"><div><h1>Pending Review</h1><p>Approve or reject public submissions stored locally.</p></div></div><div id="reviewList"></div>`;
+      const arr = pending.filter(x => x.status === "pending");
+      $("reviewList").innerHTML = arr.length ? arr.map(s => `<div class="card pending-card" style="margin-bottom:12px;display:flex;align-items:flex-start;gap:12px">
+        ${s.photo ? `<img class="student-photo" src="${s.photo}" alt="Student photo" onclick="viewFullImage('${s.id}')">` : `<div class="student-photo" style="display:grid;place-items:center;color:#8a93a3;font-size:9px">No Photo</div>`}
+        <div style="min-width:0;flex:1"><b style="display:block;overflow-wrap:anywhere">${esc(s.fullname)}</b><div class="meta">${esc(s.student_no)} • ${esc(s.grade)} • ${esc(s.contact)}</div>
+        <div class="actions"><button class="btn" onclick="pendingDetail('${s.id}')">Details</button><button class="btn primary" onclick="approve('${s.id}')">Approve</button><button class="btn danger" onclick="reject('${s.id}')">Reject</button></div></div>
+      </div>`).join("") : `<div class="card empty">No pending submissions.</div>`;
+    }
+
+    function viewFullImage(id) {
+      const all = [...read(DB_KEY), ...read(PENDING_KEY)];
+      const s = all.find(x => x.id === id);
+      if(!s || !s.photo) return;
+      openModal("Student Photo", `<div style="text-align:center"><img src="${s.photo}" alt="Student photo" style="max-width:100%;max-height:70vh;object-fit:contain;border-radius:14px"></div>`);
+    }
+
+    function pendingDetail(id) {
+      const s = pending.find(x => x.id === id);
+      if(!s) return;
+      openModal("Pending Student Detail", `<img src="${s.photo||""}" style="width:100px;height:125px;object-fit:cover;border-radius:14px"><h2>${esc(s.fullname)}</h2><div class="meta">Student No: ${esc(s.student_no)}<br>Address: ${esc(s.address)}<br>DOB: ${esc(s.dob)}<br>Contact: ${esc(s.contact)}<br>Grade: ${esc(s.grade)}<br>Enrollment Fee: ${esc(s.enrollment||"")}<br>Balance: ${esc(s.balance||"")}<br>Scholar: ${esc(s.scholar||"No")}<br>Paid Status: ${esc(s.paid||"No")}</div>`);
+    }
+
+    function approve(id) {
+      const record = pending.find(x => x.id === id);
+      if(!record) return;
+      students = read(DB_KEY); pending = read(PENDING_KEY);
+      const fresh = pending.find(x => x.id === id);
+      if(!fresh) { toast("warning", "Not found", "Submission no longer available."); render(); return; }
+
+      if(students.some(s => norm(s.fullname) === norm(fresh.fullname))) {
+        toast("warning", "Duplicate student", "Approval blocked: Name already exists.");
+        return;
+      }
+
+      const oldPending = pending.slice();
+      const newPending = pending.filter(x => x.id !== id);
+      const newStudent = {...fresh, status:"approved"};
+
+      try {
+        if(!write(PENDING_KEY, newPending)) throw new Error("Could not update queue.");
+        const updatedStudents = [...students, newStudent];
+        if(!write(DB_KEY, updatedStudents)) { write(PENDING_KEY, oldPending); throw new Error("Could not save student."); }
+        pending = newPending; students = updatedStudents; render();
+        toast("success", "Approved", "Student moved to Student Records.");
+      } catch(err) {
+        console.error("APPROVE ERROR:", err); pending = read(PENDING_KEY); students = read(DB_KEY); render();
+        toast("error", "Approval failed", "Could not complete approval. Try again.");
+      }
+    }
+
+    function reject(id) {
+      pending = read(PENDING_KEY);
+      const old = pending.slice();
+      pending = pending.filter(x => x.id !== id);
+      if(!write(PENDING_KEY, pending)) { pending = old; toast("error", "Reject failed", "Could not remove submission."); return; }
+      render(); toast("success", "Rejected", "Submission removed.");
+    }
+
+    function openLogin() {
+      openModal("Admin Login", `<form onsubmit="login(event)"><div class="field floating"><input id="loginUser" placeholder=" " autocomplete="username" required><label>Username</label></div><div class="field floating" style="margin-top:12px"><input id="loginPass" placeholder=" " type="password" autocomplete="current-password" required><label>Password</label></div><button class="btn primary" style="width:100%;margin-top:15px">Login</button></form>`);
+    }
+
+    function login(e) {
+      e.preventDefault();
+      if($("loginUser").value === "KUN" && $("loginPass").value === "4444") {
+        isAdmin = true; tab = "data"; closeModal(); toggleSidebar(false); render();
+        toast("success", "Welcome", "Administrator login successful.");
+      } else {
+        toast("error", "Login failed", "Invalid username or password.");
+      }
+    }
+
+    function logout() { isAdmin = false; tab = "entry"; render(); toast("success", "Logged out", "Administrator session ended."); }
+    function openModal(title, body) { $("modalRoot").innerHTML = `<div class="modal-wrap" onclick="if(event.target===this)closeModal()" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><h2>${title}</h2><button class="close" aria-label="Close" onclick="closeModal()">×</button></div><div class="modal-body">${body}</div></div></div>`; }
+    function closeModal() { $("modalRoot").innerHTML = ""; editingId = null; photoData = ""; }
+    document.addEventListener("keydown", e => { if(e.key === "Escape") closeModal(); });
+
+    function idCard(s, back=false) {
+      const bg = new URL(back ? "./id-back-bg.png" : "./id-front-bg.png", document.baseURI).href;
+      return back
+        ? `<div class="id-card id-back"><img class="id-bg" src="${bg}" alt="" aria-hidden="true"><div class="id-back-content"><div class="id-title">STUDENT IDENTIFICATION CARD</div><p class="id-line">This identification card remains the property of the school.</p><p class="id-line">If found, please return it to the school office.</p><p class="id-line">Validation: Official School Identification</p></div></div>`
+        : `<div class="id-card id-front"><img class="id-bg" src="${bg}" alt="" aria-hidden="true"><div class="id-front-content"><img class="id-photo" src="${s.photo||""}" alt=""><div><div class="id-title">STUDENT IDENTIFICATION CARD</div><div class="id-line"><b>Full Name:</b> ${esc(s.fullname)}</div><div class="id-line"><b>Student No:</b> ${esc(s.student_no)}</div><div class="id-line"><b>Grade/Class:</b> ${esc(s.grade)}</div><div class="id-line"><b>Date of Birth:</b> ${esc(s.dob)}</div><div class="id-line"><b>Contact:</b> ${esc(s.contact)}</div><div class="id-line"><b>Address:</b> ${esc(s.address)}</div></div></div></div>`;
+    }
+
+    /* A4 Selection & Printing */
+    function openA4() {
+      if(!isAdmin) { toast("info", "Admin only", "Please login as administrator first."); return; }
+      a4Selected = []; 
+      openModal("A4 Print Preview", `
+        <div class="field floating">
+          <input id="a4Search" placeholder=" " oninput="filterA4Preview()">
+          <label>Search student name to add</label>
+        </div>
+        <div id="a4SearchResults" style="margin-top:12px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+        <hr style="border:0; border-top:1px solid var(--border); margin:16px 0;">
+        <div id="a4preview" class="id-page">
+          <div class="card empty">No students selected. Search and select names above.</div>
+        </div>
+        <div class="actions no-print" style="margin-top:15px">
+          <button class="btn primary" onclick="printA4()" id="btnPrintA4" disabled>Print A4</button>
+        </div>
+      `);
+    }
+
+    function filterA4Preview() {
+      const q = norm($("a4Search")?.value||"");
+      const list = q ? read(DB_KEY).filter(s => norm(s.fullname).includes(q)) : [];
+      const resBox = $("a4SearchResults");
+      
+      if(!q) { resBox.innerHTML = ""; return; }
+      if(!list.length) { resBox.innerHTML = "<small class='meta'>No matches found.</small>"; return; }
+
+      resBox.innerHTML = list.map(s => {
+        const isSel = a4Selected.find(x => x.id === s.id);
+        return `<button class="btn ${isSel?'primary':''}" onclick="toggleA4('${s.id}')" style="font-size:12px; padding:6px 10px;">${isSel?'✓ ':''}${esc(s.fullname)}</button>`;
+      }).join("");
+    }
+
+    function toggleA4(id) {
+      const idx = a4Selected.findIndex(x => x.id === id);
+      if(idx >= 0) {
+        a4Selected.splice(idx, 1);
+      } else {
+        const s = read(DB_KEY).find(x => x.id === id);
+        if(s) a4Selected.push(s);
+      }
+      filterA4Preview();
+      renderA4Preview();
+    }
+
+    function renderA4Preview() {
+      const box = $("a4preview");
+      const btn = $("btnPrintA4");
+      if(!a4Selected.length) {
+        box.innerHTML = `<div class="card empty">No students selected. Search and select names above.</div>`;
+        if(btn) btn.disabled = true;
+        return;
+      }
+      if(btn) btn.disabled = false;
+      box.innerHTML = `<div class="a4">${a4Selected.map(s => idCard(s) + idCard(s, true)).join("")}</div>`;
+    }
+
+    function printA4() {
+      const w = window.open("", "_blank");
+      if(!w) { toast("error", "Print blocked", "Allow popups in your browser."); return; }
+      const a = $("a4preview").innerHTML;
+      const base = document.baseURI;
+      w.document.write(`<html><head><title>A4 Student ID Cards</title><base href="${esc(base)}"><style>${document.querySelector("style").textContent}</style></head><body>${a}<script>window.onload=()=>window.print()<\/script></body></html>`);
+      w.document.close();
+    }
+
+    function exportCSV() {
+      if(!students.length) { toast("info", "No data", "No student data available to export."); return; }
+      const rows = [["No","Student No","Full Name","Date of Birth","Contact No","Grade","Address","Enrollment Fee","Balance","Scholar","Paid Status"], ...students.map((s,i) => [i+1, s.student_no, s.fullname, s.dob, s.contact, s.grade, s.address, s.enrollment, s.balance, s.scholar, s.paid])];
+      const csv = rows.map(r => r.map(v => `"${String(v??"").replace(/"/g, '""')}"`).join(",")).join("\n");
+      download("students.csv", "text/csv;charset=utf-8", csv);
+      toast("success", "CSV exported", "File created locally.");
+    }
+
+    function exportExcel() {
+      if(!students.length) { toast("info", "No data", "No student data available to export."); return; }
+      const rows = students.map((s,i) => ({No:i+1, "Student No":s.student_no, "Full Name":s.fullname, "Date of Birth":s.dob, "Contact No":s.contact, Grade:s.grade, Address:s.address, "Enrollment Fee":s.enrollment, Balance:s.balance, Scholar:s.scholar, "Paid Status":s.paid}));
+      if(window.XLSX) {
+        const wb = XLSX.utils.book_new(), ws = XLSX.utils.json_to_sheet(rows);
+        XLSX.utils.book_append_sheet(wb, ws, "Students");
+        XLSX.writeFile(wb, "students.xlsx");
+      } else download("students.xls", "application/vnd.ms-excel", rows.map(Object.values).join("\n"));
+      toast("success", "Excel exported", "File created locally.");
+    }
+
+    function download(name, type, data) {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([data], {type}));
+      a.download = name; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+
+    document.addEventListener("DOMContentLoaded", render);
+  </script>
+</body>
+</html>
