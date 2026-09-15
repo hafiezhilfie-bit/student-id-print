@@ -129,6 +129,11 @@ html[data-theme="dark"] .student-certificate,html[data-theme="dark"] .birth-docu
       background-repeat: no-repeat;
     }
     .card > form > *, .modal-body > form > * { position: relative; z-index: 1; }
+    /* Prevent double background on Student Registration: use the page background only once. */
+    .card:has(#studentForm) { background: rgba(255,255,255,.90); }
+    .card:has(#studentForm) > form { background-image: none !important; background-color: transparent !important; }
+    html[data-theme="dark"] .card:has(#studentForm) { background: rgba(17,24,39,.90); }
+
     html[data-theme="dark"] .card > form, html[data-theme="dark"] .modal-body > form {
       background-image: linear-gradient(rgba(17,24,39,.93), rgba(17,24,39,.93)), url("form-background.png");
     }
